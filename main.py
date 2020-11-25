@@ -118,6 +118,7 @@ class Classifier(nn.Module):
         if cmd_args.mode == 'gpu':
             node_feat = node_feat.cuda()
             labels = labels.cuda()
+            [g.cuda() for g in batch_graph]
 
         return node_feat, labels
 
