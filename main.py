@@ -11,7 +11,7 @@ from DGCNN_embedding import DGCNN
 from mlp_dropout import MLPClassifier
 from sklearn import metrics
 from embedding import EmbedMeanField, EmbedLoopyBP
-from util import cmd_args, load_data
+from util import cmd_args, load_data, load_self_data
 
 
 sys.path.append(
@@ -20,7 +20,7 @@ sys.path.append(
 
 
 class Classifier(nn.Module):
-    def __init__(self):
+    def __init__(self, cmd_args):
         super(Classifier, self).__init__()
         if cmd_args.gm == 'mean_field':
             model = EmbedMeanField
@@ -32,6 +32,7 @@ class Classifier(nn.Module):
             print('unknown gm %s' % cmd_args.gm)
             sys.exit()
 
+        print("attr dim ########", cmd_args.attr_dim)
         if cmd_args.gm == 'DGCNN':
             self.s2v = model(
                 latent_dim=cmd_args.latent_dim,
@@ -43,7 +44,7 @@ class Classifier(nn.Module):
             self.s2v = model(
                 latent_dim=cmd_args.latent_dim,
                 output_dim=cmd_args.out_dim,
-                num_node_feats=cmd_args.feat_dim,
+                num_node_feats=cmd_args.feat_dim+cmd_args.attr_dim,
                 num_edge_feats=0,
                 max_lv=cmd_args.max_lv)
         out_dim = cmd_args.out_dim
@@ -59,6 +60,7 @@ class Classifier(nn.Module):
     def PrepareFeatureLabel(self, batch_graph):
         labels = torch.LongTensor(len(batch_graph))
         n_nodes = 0
+        # print("len batch graph", len(batch_graph))
 
         if batch_graph[0].node_tags is not None:
             node_tag_flag = True
@@ -76,6 +78,7 @@ class Classifier(nn.Module):
             labels[i] = batch_graph[i].label
             n_nodes += batch_graph[i].num_nodes
             if node_tag_flag:
+                # print("cur batch node tags", batch_graph[i].node_tags)
                 concat_tag += batch_graph[i].node_tags
             if node_feat_flag:
                 tmp = torch.from_numpy(
@@ -85,6 +88,8 @@ class Classifier(nn.Module):
         if node_tag_flag:
             concat_tag = torch.LongTensor(concat_tag).view(-1, 1)
             node_tag = torch.zeros(n_nodes, cmd_args.feat_dim)
+            # print("node tag", node_tag.shape)
+            # print("concat tag", concat_tag.shape)
             node_tag.scatter_(1, concat_tag, 1)
 
         if node_feat_flag:
@@ -128,6 +133,7 @@ def loop_dataset(g_list, classifier, sample_idxes, optimizer=None,
     all_scores = []
 
     n_samples = 0
+    # print("bsize", bsize)
     for pos in pbar:
         selected_idx = sample_idxes[pos * bsize: (pos + 1) * bsize]
 
@@ -169,8 +175,12 @@ if __name__ == '__main__':
     random.seed(cmd_args.seed)
     np.random.seed(cmd_args.seed)
     torch.manual_seed(cmd_args.seed)
+    cmd_args.data = "twitter"
 
-    train_graphs, test_graphs = load_data()
+    # train_graphs, test_graphs = load_data()
+    train_graphs, _, test_graphs = load_self_data(cmd_args)
+    print("attr dim", cmd_args.attr_dim)
+    print("---------------------")
     print('# train: %d, # test: %d' % (len(train_graphs), len(test_graphs)))
 
     if cmd_args.sortpooling_k <= 1:
@@ -181,7 +191,7 @@ if __name__ == '__main__':
         cmd_args.sortpooling_k = max(10, cmd_args.sortpooling_k)
         print('k used in SortPooling is: ' + str(cmd_args.sortpooling_k))
 
-    classifier = Classifier()
+    classifier = Classifier(cmd_args)
     if cmd_args.mode == 'gpu':
         classifier = classifier.cuda()
 

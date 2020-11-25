@@ -25,6 +25,7 @@ class EmbedMeanField(nn.Module):
 
         self.max_lv = max_lv
 
+        print("num_node_feats", num_node_feats, "latent_dim", latent_dim)
         self.w_n2l = nn.Linear(num_node_feats, latent_dim)
         if num_edge_feats > 0:
             self.w_e2l = nn.Linear(num_edge_feats, latent_dim)
@@ -52,6 +53,7 @@ class EmbedMeanField(nn.Module):
         return h
 
     def mean_field(self, node_feat, edge_feat, n2n_sp, e2n_sp, subg_sp):
+        # print("node feature shape", node_feat.shape)
         input_node_linear = self.w_n2l(node_feat)
         input_message = input_node_linear
         if edge_feat is not None:

@@ -110,7 +110,7 @@ class DGCNN(nn.Module):
     #        print("cur_message_layer: ",cur_message_layer.type())
             node_linear = self.conv_params[lv](n2npool)  # Y = Y * W
             normalized_linear = node_linear.div(node_degs)  # Y = D^-1 * Y
-            cur_message_layer = F.tanh(normalized_linear)
+            cur_message_layer = torch.tanh(normalized_linear)
         #       print(" The shape of X is: ", cur_message_layer.size())
             cat_message_layers.append(cur_message_layer)
             lv += 1
@@ -128,7 +128,7 @@ class DGCNN(nn.Module):
             n2npool = gnn_spmm(n2n_sp, cur_message_layer) + cur_message_layer # Y = (A + I) * X
             node_linear = self.conv_params_p[lv2](n2npool)  # Y = Y * W
             normalized_linear = node_linear.div(node_degs)  # Y = D^-1 * Y
-            cur_message_layer = F.tanh(normalized_linear)
+            cur_message_layer = torch.tanh(normalized_linear)
       #      print("The shape of X^bar is: ", cur_message_layer.size())
         #       cat_message_layers.append(cur_message_layer)
             lv2 += 1

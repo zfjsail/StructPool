@@ -60,7 +60,8 @@ class MLPClassifier(nn.Module):
 
         if y is not None:
             y = Variable(y)
-            loss = F.nll_loss(logits, y)
+            # print("y", y)
+            loss = F.nll_loss(logits, y.long())
 
             pred = logits.data.max(1, keepdim=True)[1]
             acc = pred.eq(y.data.view_as(pred)).cpu().sum().item() / float(y.size()[0])
