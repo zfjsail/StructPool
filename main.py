@@ -123,6 +123,8 @@ class Classifier(nn.Module):
 
     def forward(self, batch_graph):
         node_feat, labels = self.PrepareFeatureLabel(batch_graph)
+        print("bg", batch_graph)
+        print("nf", node_feat)
         embed = self.s2v(batch_graph, node_feat, None)
 
         return self.mlp(embed, labels)

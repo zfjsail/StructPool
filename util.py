@@ -16,7 +16,7 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s %(message)s')  # inc
 
 
 cmd_opt = argparse.ArgumentParser(description='Argparser for graph_classification')
-cmd_opt.add_argument('-mode', default='cpu', help='cpu/gpu')
+cmd_opt.add_argument('-mode', default='gpu', help='cpu/gpu')
 cmd_opt.add_argument('-gm', default='mean_field', help='mean_field/loopy_bp')
 cmd_opt.add_argument('-data', default=None, help='data folder name')
 cmd_opt.add_argument('-batch_size', type=int, default=64, help='minibatch size')
