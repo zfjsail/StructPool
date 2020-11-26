@@ -37,7 +37,8 @@ class EmbedMeanField(nn.Module):
 
     def forward(self, graph_list, node_feat, edge_feat): 
         n2n_sp, e2n_sp, subg_sp = S2VLIB.PrepareMeanField(graph_list)
-        if type(node_feat) is torch.cuda.FloatTensor:
+        # if type(node_feat) is torch.cuda.FloatTensor:
+        if torch.cuda.is_available():
             n2n_sp = n2n_sp.cuda()
             e2n_sp = e2n_sp.cuda()
             subg_sp = subg_sp.cuda()
@@ -47,7 +48,11 @@ class EmbedMeanField(nn.Module):
         n2n_sp = Variable(n2n_sp)
         e2n_sp = Variable(e2n_sp)
         subg_sp = Variable(subg_sp)
-
+        # print("nf", node_feat)
+        # print("ef", edge_feat)
+        # print("n2n", n2n_sp)
+        # print("e2n", e2n_sp)
+        # print("subg", subg_sp)
         h = self.mean_field(node_feat, edge_feat, n2n_sp, e2n_sp, subg_sp)
         
         return h

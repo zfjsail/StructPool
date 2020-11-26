@@ -118,14 +118,14 @@ class Classifier(nn.Module):
         if cmd_args.mode == 'gpu':
             node_feat = node_feat.cuda()
             labels = labels.cuda()
-            [g.cuda() for g in batch_graph]
+            # [g.cuda() for g in batch_graph]
 
         return node_feat, labels
 
     def forward(self, batch_graph):
         node_feat, labels = self.PrepareFeatureLabel(batch_graph)
-        print("bg", batch_graph)
-        print("nf", node_feat)
+        # print("bg", batch_graph)
+        # print("nf", node_feat)
         embed = self.s2v(batch_graph, node_feat, None)
 
         return self.mlp(embed, labels)
