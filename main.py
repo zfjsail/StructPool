@@ -10,6 +10,8 @@ import math
 from DGCNN_embedding import DGCNN
 from mlp_dropout import MLPClassifier
 from sklearn import metrics
+import shutil
+from tensorboard_logger import tensorboard_logger
 from embedding import EmbedMeanField, EmbedLoopyBP
 from util import cmd_args, load_data, load_self_data
 
@@ -26,6 +28,13 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s %(message)s') # incl
 sys.path.append(
     '%s/pytorch_structure2vec-master/s2v_lib' % os.path.dirname(
         os.path.realpath(__file__)))
+
+
+tensorboard_log_dir = 'tensorboard/%s_%s' % ("structpool", cmd_args.dataset)
+os.makedirs(tensorboard_log_dir, exist_ok=True)
+shutil.rmtree(tensorboard_log_dir)
+tensorboard_logger.configure(tensorboard_log_dir)
+logger.info('tensorboard logging to %s', tensorboard_log_dir)
 
 
 class Classifier(nn.Module):
@@ -136,7 +145,7 @@ class Classifier(nn.Module):
         return embed, labels
 
 
-def loop_dataset(g_list, classifier, sample_idxes, optimizer=None,
+def loop_dataset(g_list, epoch, classifier, sample_idxes, optimizer=None,
                  bsize=cmd_args.batch_size):
     total_loss = []
     total_iters = (len(sample_idxes) + (bsize - 1) * (optimizer is None)) // bsize # noqa
@@ -179,10 +188,12 @@ def loop_dataset(g_list, classifier, sample_idxes, optimizer=None,
     auc = metrics.auc(fpr, tpr)
     avg_loss = np.concatenate((avg_loss, [auc]))
 
+    tensorboard_logger.log_value('train_loss', avg_loss, epoch + 1)
+
     return avg_loss
 
 
-def evaluate(g_list, classifier, sample_idxes, bsize=cmd_args.batch_size, thr=None, return_best_thr=False):
+def evaluate(g_list, epoch, classifier, sample_idxes, bsize=cmd_args.batch_size, thr=None, return_best_thr=False):
     total_iters = (len(sample_idxes) + (bsize - 1) * (optimizer is None)) // bsize # noqa
     pbar = tqdm(range(total_iters), unit='batch')
 
@@ -222,6 +233,14 @@ def evaluate(g_list, classifier, sample_idxes, bsize=cmd_args.batch_size, thr=No
     logger.info("loss: %.4f AUC: %.4f Prec: %.4f Rec: %.4f F1: %.4f",
                 sum(losses) / total, auc, prec, rec, f1)
     loss_ret = sum(losses) / total
+
+    if return_best_thr:
+        log_desc = "valid_"
+    else:
+        log_desc = "test_"
+    tensorboard_logger.log_value(log_desc + 'loss', loss_ret, epoch + 1)
+    tensorboard_logger.log_value(log_desc + 'auc', auc, epoch + 1)
+    tensorboard_logger.log_value(log_desc + 'f1', f1, epoch + 1)
 
     if return_best_thr:
         precs, recs, thrs = precision_recall_curve(y_true, y_score)
@@ -269,18 +288,23 @@ if __name__ == '__main__':
     best_loss = None
     max_acc = 0.0
 
-    val_loss, val_metrics, thr = evaluate(valid_graphs, classifier, list(range(len(valid_graphs))),
+    val_loss, val_metrics, thr = evaluate(valid_graphs, -1, classifier, list(range(len(valid_graphs))),
                                           return_best_thr=True)
     print("validation loss:", val_loss, "metrics", val_metrics, "thr:", thr)
 
-    test_loss, test_metrics, _ = evaluate(test_graphs, classifier, list(range(len(test_graphs))), thr=thr)
+    test_loss, test_metrics, _ = evaluate(test_graphs, -1, classifier, list(range(len(test_graphs))), thr=thr)
     print("test loss:", test_loss, "metrics", test_metrics)
+
+    best_thr = None
+    best_valid_metrics = None
+    best_test_metrics = None
+    best_epoch = 0
 
     for epoch in range(cmd_args.num_epochs):
         random.shuffle(train_idxes)
         classifier.train()
         avg_loss = loop_dataset(
-            train_graphs, classifier, train_idxes, optimizer=optimizer)
+            train_graphs, epoch, classifier, train_idxes, optimizer=optimizer)
         if not cmd_args.printAUC:
             avg_loss[2] = 0.0
         print('\033[92m\naverage training of epoch %d: loss %.5f acc %.5f auc %.5f\033[0m' % (epoch, avg_loss[0], avg_loss[1], avg_loss[2])) # noqa
@@ -288,10 +312,10 @@ if __name__ == '__main__':
         classifier.eval()
         # test_loss = loop_dataset(
         #     test_graphs, classifier, list(range(len(test_graphs))))
-        val_loss, val_metrics, thr = evaluate(valid_graphs, classifier, list(range(len(valid_graphs))), return_best_thr=True)
+        val_loss, val_metrics, thr = evaluate(valid_graphs, epoch, classifier, list(range(len(valid_graphs))), return_best_thr=True)
         print("\nvalidation loss:", val_loss, "metrics", val_metrics, "thr:", thr)
 
-        test_loss, test_metrics, _ = evaluate(test_graphs, classifier, list(range(len(test_graphs))), thr=thr)
+        test_loss, test_metrics, _ = evaluate(test_graphs, epoch, classifier, list(range(len(test_graphs))), thr=thr)
         print("\ntest loss:", test_loss, "metrics", test_metrics)
 
         # if not cmd_args.printAUC:
@@ -303,6 +327,12 @@ if __name__ == '__main__':
             best_thr = thr
             best_valid_metrics = val_metrics
             best_test_metrics = test_metrics
+            best_epoch = epoch
+            logger.info("******************BEST UNTIL NOW***********************")
+
+    print("Finally, best thr:", best_thr, "best epoch", best_epoch)
+    print("best valid metrics", best_valid_metrics)
+    print("best test metrics", best_test_metrics)
 
 
     # with open('acc_result.txt', 'a+') as f:
