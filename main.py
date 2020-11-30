@@ -30,7 +30,7 @@ sys.path.append(
         os.path.realpath(__file__)))
 
 
-tensorboard_log_dir = 'tensorboard/%s_%s' % ("structpool", cmd_args.dataset)
+tensorboard_log_dir = 'tensorboard/%s_%s' % ("structpool", cmd_args.data)
 os.makedirs(tensorboard_log_dir, exist_ok=True)
 shutil.rmtree(tensorboard_log_dir)
 tensorboard_logger.configure(tensorboard_log_dir)
@@ -186,9 +186,9 @@ def loop_dataset(g_list, epoch, classifier, sample_idxes, optimizer=None,
     all_targets = np.array(all_targets)
     fpr, tpr, _ = metrics.roc_curve(all_targets, all_scores, pos_label=1)
     auc = metrics.auc(fpr, tpr)
+    # print("avg loss", avg_loss)
+    tensorboard_logger.log_value('train_loss', avg_loss[0], epoch + 1)
     avg_loss = np.concatenate((avg_loss, [auc]))
-
-    tensorboard_logger.log_value('train_loss', avg_loss, epoch + 1)
 
     return avg_loss
 
@@ -227,6 +227,9 @@ def evaluate(g_list, epoch, classifier, sample_idxes, bsize=cmd_args.batch_size,
         y_score = np.array(y_score)
         y_pred = np.zeros_like(y_score)
         y_pred[y_score > thr] = 1
+    
+    # print("y_true", len(y_true), y_true)
+    # print("y_score", len(y_score), y_score)
 
     prec, rec, f1, _ = precision_recall_fscore_support(y_true, y_pred, average="binary")
     auc = roc_auc_score(y_true, y_score)
