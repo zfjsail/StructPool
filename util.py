@@ -26,7 +26,7 @@ cmd_opt.add_argument('-num_class', type=int, default=2, help='#classes')
 cmd_opt.add_argument('-fold', type=int, default=1, help='fold (1..10)')
 cmd_opt.add_argument('-test_number', type=int, default=0,
                      help='if specified, will overwrite -fold and use the last -test_number graphs as testing data')
-cmd_opt.add_argument('-num_epochs', type=int, default=100, help='number of epochs')
+cmd_opt.add_argument('-num_epochs', type=int, default=500, help='number of epochs')
 cmd_opt.add_argument('-latent_dim', type=str, default='64', help='dimension(s) of latent layers')
 cmd_opt.add_argument('-sortpooling_k', type=float, default=30, help='number of nodes kept after SortPooling')
 cmd_opt.add_argument('-out_dim', type=int, default=1024, help='s2v output size')
