@@ -263,7 +263,7 @@ if __name__ == '__main__':
     random.seed(cmd_args.seed)
     np.random.seed(cmd_args.seed)
     torch.manual_seed(cmd_args.seed)
-    cmd_args.data = "twitter"
+    # cmd_args.data = "twitter"
 
     # train_graphs, test_graphs = load_data()
     train_graphs, valid_graphs, test_graphs = load_self_data(cmd_args)
