@@ -1,5 +1,5 @@
 from __future__ import print_function
-from os.path import join
+from os.path import join, isfile
 import numpy as np
 import networkx as nx
 import argparse
@@ -18,7 +18,8 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s %(message)s')  # inc
 cmd_opt = argparse.ArgumentParser(description='Argparser for graph_classification')
 cmd_opt.add_argument('-mode', default='gpu', help='cpu/gpu')
 cmd_opt.add_argument('-gm', default='mean_field', help='mean_field/loopy_bp')
-cmd_opt.add_argument('-data', default="twitter", help='dataset name')
+cmd_opt.add_argument('-data', default="wechat", help='dataset name')
+cmd_opt.add_argument('-label-type', default="click", help='dataset name')
 cmd_opt.add_argument('-batch_size', type=int, default=2048, help='minibatch size')
 cmd_opt.add_argument('-seed', type=int, default=42, help='seed')
 cmd_opt.add_argument('-feat_dim', type=int, default=0, help='dimension of discrete node feature (maximum node tag)')
@@ -194,30 +195,105 @@ def load_self_data(args):
     file_dir = join(settings.DATA_DIR, args.data)
     print('loading data ...')
 
-    graphs = np.load(join(file_dir, "adjacency_matrix.npy")).astype(np.float32)
+    if args.data != "wechat":
+        graphs = np.load(join(file_dir, "adjacency_matrix.npy")).astype(np.float32)
 
-    # wheather a user has been influenced
-    # wheather he/she is the ego user
-    influence_features = np.load(
-        join(file_dir, "influence_feature.npy")).astype(np.float32)
-    logger.info("influence features loaded!")
+        # wheather a user has been influenced
+        # wheather he/she is the ego user
+        influence_features = np.load(
+            join(file_dir, "influence_feature.npy")).astype(np.float32)
+        logger.info("influence features loaded!")
 
-    labels = np.load(join(file_dir, "label.npy"))
-    logger.info("labels loaded!")
+        labels = np.load(join(file_dir, "label.npy"))
+        logger.info("labels loaded!")
 
-    vertices = np.load(join(file_dir, "vertex_id.npy"))
-    logger.info("vertex ids loaded!")
+        vertices = np.load(join(file_dir, "vertex_id.npy"))
+        logger.info("vertex ids loaded!")
 
-    vertex_features = np.load(join(file_dir, "vertex_feature.npy"))
-    vertex_features = preprocessing.scale(vertex_features)
-    # vertex_features = torch.FloatTensor(vertex_features)
-    logger.info("global vertex features loaded!")
+        vertex_features = np.load(join(file_dir, "vertex_feature.npy"))
+        vertex_features = preprocessing.scale(vertex_features)
+        # vertex_features = torch.FloatTensor(vertex_features)
+        logger.info("global vertex features loaded!")
 
-    embedding_path = join(file_dir, "prone.emb2")
-    max_vertex_idx = np.max(vertices)
-    embedding = load_w2v_feature(embedding_path, max_vertex_idx)
-    # self.embedding = torch.FloatTensor(embedding)
-    logger.info("%d-dim embedding loaded!", embedding[0].shape[0])
+        embedding_path = join(file_dir, "prone.emb2")
+        max_vertex_idx = np.max(vertices)
+        embedding = load_w2v_feature(embedding_path, max_vertex_idx)
+        # self.embedding = torch.FloatTensor(embedding)
+        logger.info("%d-dim embedding loaded!", embedding[0].shape[0])
+
+    else:
+
+        embedding = np.empty(shape=(0, 64))
+        if isfile(join(file_dir, "node_embedding_spectral.npy")):
+            embedding = np.load(join(file_dir, "node_embedding_spectral.npy"))
+            logger.info("%d-dim embedding loaded!", embedding[0].shape[0])
+        else:
+            # embedding = np.load(os.path.join(settings.DATA_DIR, "node_embedding_spectral.npy"))
+            for emb_i in range(5):
+                # with np.load(join(settings.DATA_DIR, "node_embedding_spectral_{}.npz".format(emb_i))) as data:
+                data = np.load(join(file_dir, "node_embedding_spectral_{}.npz".format(emb_i)))
+                embedding = np.concatenate((embedding, data["emb"]))
+                logger.info("load emb batch %d", emb_i)
+                del data
+        tmp = np.zeros((64,))
+        embedding = np.row_stack((embedding, tmp))
+        # self.embedding = torch.FloatTensor(embedding)
+
+        # del embedding
+
+        vertex_features = np.load(join(file_dir, "user_features.npy"))
+        vertex_features = preprocessing.scale(vertex_features)
+        vertex_features = np.concatenate((vertex_features,
+                                          np.zeros(shape=(1, vertex_features.shape[1]))), axis=0)
+        logger.info("global vertex features loaded!")
+
+        graphs_train = np.load(join(file_dir, "train_adjacency_matrix.npy"))
+        logger.info("train graphs loaded")
+        graphs_valid = np.load(join(file_dir, "valid_adjacency_matrix.npy"))
+        logger.info("valid graphs loaded")
+        graphs_test = np.load(join(file_dir, "test_adjacency_matrix.npy"))
+        logger.info("test graphs loaded")
+
+        graphs = np.vstack((graphs_train, graphs_valid, graphs_test))
+        logger.info("all graphs got")
+        print("graphs shape", graphs.shape)
+
+        del graphs_train, graphs_valid, graphs_test
+
+        # roles = ["train", "valid", "test"]
+        # for role in roles:
+        inf_features_train = np.load(join(file_dir, "train_influence_features.npy")).astype(np.float32)
+        logger.info("influence features train loaded!")
+        inf_features_valid = np.load(join(file_dir, "valid_influence_features.npy")).astype(np.float32)
+        logger.info("influence features valid loaded!")
+        inf_features_test = np.load(join(file_dir, "test_influence_features.npy")).astype(np.float32)
+        logger.info("influence features test loaded!")
+
+        influence_features = np.vstack((inf_features_train, inf_features_valid, inf_features_test))
+        logger.info("inf features got")
+
+        del inf_features_train, inf_features_valid, inf_features_test
+
+        labels_train = np.load(join(file_dir, "train_{}_labels.npy".format(args.label_type)))
+        logger.info("labels train loaded!")
+        labels_valid = np.load(join(file_dir, "valid_{}_labels.npy".format(args.label_type)))
+        logger.info("labels valid loaded!")
+        labels_test = np.load(join(file_dir, "test_{}_labels.npy".format(args.label_type)))
+        logger.info("labels test loaded!")
+
+        labels = np.concatenate((labels_train, labels_valid, labels_test))
+        logger.info("labels loaded")
+
+        vertices_train = np.load(join(file_dir, "train_vertex_ids.npy"))
+        logger.info("vertex ids train loaded!")
+        vertices_valid = np.load(join(file_dir, "valid_vertex_ids.npy"))
+        logger.info("vertex ids valid loaded!")
+        vertices_test = np.load(join(file_dir, "test_vertex_ids.npy"))
+        logger.info("vertex ids test loaded!")
+
+        vertices = np.vstack((vertices_train, vertices_valid, vertices_test))
+        logger.info("vertex ids got")
+        del vertices_train, vertices_valid, vertices_test
 
     n_g = len(graphs)
 
@@ -247,12 +323,20 @@ def load_self_data(args):
     print('# classes: %d' % cmd_args.num_class)
     print('# maximum node tag: %d' % cmd_args.feat_dim)
 
-    g_list = sklearn.utils.shuffle(g_list, random_state=args.seed)
+    if args.data != "wechat":
+        g_list = sklearn.utils.shuffle(g_list, random_state=args.seed)
 
-    train_ratio = 0.5
-    valid_ratio = 0.25
-    n_train = int(n_g * train_ratio)
-    n_valid = int((train_ratio + valid_ratio) * n_g) - n_train
+        train_ratio = 0.5
+        valid_ratio = 0.25
+        n_train = int(n_g * train_ratio)
+        n_valid = int((train_ratio + valid_ratio) * n_g) - n_train
+    else:
+        if settings.TEST_SIZE < np.iinfo(np.int64).max:
+            n_train = int(settings.TEST_SIZE/3)
+            n_valid = int(settings.TEST_SIZE/3)
+        else:
+            n_train = len(labels_train)
+            n_valid = len(labels_valid)
     train_gs = [g_list[i] for i in range(0, n_train)]
     valid_gs = [g_list[i] for i in range(n_train, n_train + n_valid)]
     test_gs = [g_list[i] for i in range(n_train + n_valid, n_g)]

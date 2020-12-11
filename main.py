@@ -30,7 +30,7 @@ sys.path.append(
         os.path.realpath(__file__)))
 
 
-tensorboard_log_dir = 'tensorboard/%s_%s' % ("structpool", cmd_args.data)
+tensorboard_log_dir = 'tensorboard/%s_%s_%s' % ("structpool", cmd_args.data, cmd_args.label_type)
 os.makedirs(tensorboard_log_dir, exist_ok=True)
 shutil.rmtree(tensorboard_log_dir)
 tensorboard_logger.configure(tensorboard_log_dir)
