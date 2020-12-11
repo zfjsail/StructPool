@@ -154,7 +154,7 @@ def gen_graph(adj, inf_features, node_emb, label, cur_node_features):
     g = nx.from_numpy_array(adj)
     node_features = np.concatenate((cur_node_features, node_emb, inf_features), axis=1)
     g.label = label
-    g.remove_nodes_from(list(nx.isolates(g)))
+    # g.remove_nodes_from(list(nx.isolates(g)))  wechat data
     g.node_features = node_features
     return g
 

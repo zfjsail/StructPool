@@ -111,6 +111,7 @@ class Classifier(nn.Module):
             except:
                 print("node tag", node_tag.shape)
                 print("concat tag", concat_tag.shape)
+                raise
 
         if node_feat_flag:
             node_feat = torch.cat(concat_feat, 0)
