@@ -106,9 +106,11 @@ class Classifier(nn.Module):
         if node_tag_flag:
             concat_tag = torch.LongTensor(concat_tag).view(-1, 1)
             node_tag = torch.zeros(n_nodes, cmd_args.feat_dim)
-            # print("node tag", node_tag.shape)
-            # print("concat tag", concat_tag.shape)
-            node_tag.scatter_(1, concat_tag, 1)
+            try:
+                node_tag.scatter_(1, concat_tag, 1)
+            except:
+                print("node tag", node_tag.shape)
+                print("concat tag", concat_tag.shape)
 
         if node_feat_flag:
             node_feat = torch.cat(concat_feat, 0)
