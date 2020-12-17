@@ -19,7 +19,7 @@ cmd_opt = argparse.ArgumentParser(description='Argparser for graph_classificatio
 cmd_opt.add_argument('-mode', default='gpu', help='cpu/gpu')
 cmd_opt.add_argument('-gm', default='mean_field', help='mean_field/loopy_bp')
 cmd_opt.add_argument('-data', default="wechat", help='dataset name')
-cmd_opt.add_argument('-label-type', default="click", help='dataset name')
+cmd_opt.add_argument('-label-type', default="like", help='dataset name')
 cmd_opt.add_argument('-batch_size', type=int, default=2048, help='minibatch size')
 cmd_opt.add_argument('-seed', type=int, default=42, help='seed')
 cmd_opt.add_argument('-feat_dim', type=int, default=0, help='dimension of discrete node feature (maximum node tag)')
@@ -59,6 +59,7 @@ class S2VGraph(object):
         self.label = label
         self.node_features = node_features  # numpy array (node_num * feature_dim)
         self.degs = list(dict(g.degree).values())
+        self.degs = [self.num_nodes-1 if x >= self.num_nodes else x for x in self.degs]
 
         if len(g.edges()) != 0:
             x, y = zip(*g.edges())
